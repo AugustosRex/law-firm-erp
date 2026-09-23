@@ -3,7 +3,7 @@ FROM php:8.2-apache
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq-dev libpng-dev libjpeg-dev libfreetype6-dev \
     libzip-dev libicu-dev unzip curl \
-    && docker-php-ext-configure gd --with-freetype --with-jpeg \
+    && docker-php-ext-configure gd --with-freetype --with-jpeg 2>/dev/null || true \
     && docker-php-ext-install -j$(nproc) \
         pdo_pgsql pgsql gd zip intl calendar mysqli pdo_mysql \
     && rm -rf /var/lib/apt/lists/*
