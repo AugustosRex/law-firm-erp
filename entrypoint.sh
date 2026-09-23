@@ -3,11 +3,11 @@ set -e
 
 PORT="${PORT:-10000}"
 
-# Adjust Apache to listen on the correct port
-sed -i "s/Listen 80/Listen ${PORT}/" /etc/apache2/ports.conf
-sed -i "s/Listen 10000/Listen ${PORT}/" /etc/apache2/ports.conf
-sed -i "s/VirtualHost \*:10000/VirtualHost \*:${PORT}/" /etc/apache2/sites-available/000-default.conf
+# Replace port placeholder in Apache configs
+sed -i "s/__PORT__/${PORT}/g" /etc/apache2/ports.conf
+sed -i "s/__PORT__/${PORT}/g" /etc/apache2/sites-available/000-default.conf
 
+# Configure Dolibarr database from Render's DATABASE_URL
 if [ -n "$DATABASE_URL" ]; then
     DB_USER=$(echo "$DATABASE_URL" | sed -n 's|.*://\([^:]*\):.*|\1|p')
     DB_PASS=$(echo "$DATABASE_URL" | sed -n 's|.*://[^:]*:\([^@]*\)@.*|\1|p')

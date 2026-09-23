@@ -19,17 +19,8 @@ RUN curl -fsSL "https://github.com/Dolibarr/dolibarr/archive/refs/tags/${DOLIBAR
     && cp /var/www/html/dolibarr/htdocs/conf/conf.php.example /var/www/html/dolibarr/htdocs/conf/conf.php \
     && chown www-data:www-data /var/www/html/dolibarr/htdocs/conf/conf.php
 
-RUN printf '<VirtualHost *:10000>\n\
-    DocumentRoot /var/www/html/dolibarr/htdocs\n\
-    <Directory /var/www/html/dolibarr/htdocs>\n\
-        AllowOverride All\n\
-        Require all granted\n\
-    </Directory>\n\
-    ErrorLog ${APACHE_LOG_DIR}/error.log\n\
-    CustomLog ${APACHE_LOG_DIR}/access.log combined\n\
-</VirtualHost>\n' > /etc/apache2/sites-available/000-default.conf
-
-RUN printf 'Listen 10000\n' >> /etc/apache2/ports.conf
+COPY apache-ports.conf /etc/apache2/ports.conf
+COPY apache-site.conf /etc/apache2/sites-available/000-default.conf
 
 EXPOSE 10000
 
