@@ -25,6 +25,7 @@ COPY apache-site.conf /etc/apache2/sites-available/000-default.conf
 EXPOSE 10000
 
 COPY entrypoint.sh /entrypoint.sh
+COPY reset-admin.php /reset-admin.php
 RUN chmod +x /entrypoint.sh
 
 ENTRYPOINT ["/entrypoint.sh"]

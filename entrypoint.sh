@@ -28,6 +28,12 @@ EOF
 
     chown www-data:www-data /var/www/html/dolibarr/htdocs/conf/conf.php
     echo "Dolibarr conf.php configured"
+
+    # Reset admin password if requested
+    if [ -n "$DOLIBARR_ADMIN_PASSWORD" ]; then
+        echo "Attempting admin password reset..."
+        php /reset-admin.php || true
+    fi
 fi
 
 exec "$@"
