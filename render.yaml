@@ -5,10 +5,26 @@ services:
     plan: free
     healthCheckPath: /index.php
     envVars:
-      - key: DATABASE_URL
+      - key: DOLIBARR_DB_HOST
         fromDatabase:
           name: advocacia-db
-          property: connectionString
+          property: host
+      - key: DOLIBARR_DB_PORT
+        fromDatabase:
+          name: advocacia-db
+          property: port
+      - key: DOLIBARR_DB_USER
+        fromDatabase:
+          name: advocacia-db
+          property: user
+      - key: DOLIBARR_DB_PASS
+        fromDatabase:
+          name: advocacia-db
+          property: password
+      - key: DOLIBARR_DB_NAME
+        fromDatabase:
+          name: advocacia-db
+          property: database
       - key: DOLIBARR_URL_ROOT
         value: https://advocacia-erp.onrender.com
       - key: PHP_MEMORY_LIMIT
