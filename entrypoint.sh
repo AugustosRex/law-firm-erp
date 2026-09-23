@@ -6,7 +6,6 @@ PORT="${PORT:-10000}"
 sed -i "s/__PORT__/${PORT}/g" /etc/apache2/ports.conf
 sed -i "s/__PORT__/${PORT}/g" /etc/apache2/sites-available/000-default.conf
 
-# Parse DATABASE_URL for PostgreSQL connection
 if [ -n "$DATABASE_URL" ]; then
     DB_USER=$(echo "$DATABASE_URL" | sed -n 's|.*://\([^:]*\):.*|\1|p')
     DB_PASS=$(echo "$DATABASE_URL" | sed -n 's|.*://[^:]*:\([^@]*\)@.*|\1|p')
@@ -14,11 +13,11 @@ if [ -n "$DATABASE_URL" ]; then
     DB_PORT=$(echo "$DATABASE_URL" | sed -n 's|.*:\([0-9]*\)/.*|\1|p')
     DB_NAME=$(echo "$DATABASE_URL" | sed -n 's|.*/\([^/?]*\).*|\1|p')
 
-    echo "DB_HOST=$DB_HOST DB_PORT=$DB_PORT DB_NAME=$DB_NAME DB_USER=$DB_USER"
+    DOLIBARR_URL="${DOLIBARR_URL_ROOT:-http://localhost}"
 
     cat > /var/www/html/dolibarr/htdocs/conf/conf.php << EOF
 <?php
-\$dolibarr_main_url_root='${DOLIBARR_URL_ROOT:-http://localhost}';
+\$dolibarr_main_url_root='$DOLIBARR_URL';
 \$dolibarr_main_document_root='/var/www/html/dolibarr/htdocs';
 \$dolibarr_main_data_root='/var/www/html/dolibarr/documents';
 \$dolibarr_main_db_type='pgsql';
@@ -36,63 +35,44 @@ if [ -n "$DATABASE_URL" ]; then
 EOF
 
     chown www-data:www-data /var/www/html/dolibarr/htdocs/conf/conf.php
-    echo "Dolibarr conf.php configured"
+    echo "[entrypoint] conf.php written for DB: $DB_HOST:$DB_PORT/$DB_NAME"
 
-    # ── Auto-install Dolibarr tables via CLI ──
-    echo "Running Dolibarr auto-install..."
-    cd /var/www/html/dolibarr/htdocs/install
+    # ── Auto-install: submit Dolibarr installer via curl ──
+    INSTALL_URL="${DOLIBARR_URL}/install"
+    echo "[entrypoint] Waiting for Apache..."
+    sleep 2
 
-    # Step 1: Save config to install.forced.php so installer uses it
-    php -r "
-    require '/var/www/html/dolibarr/htdocs/conf/conf.php';
-    \$force = array(
-        'main_dir' => '/var/www/html/dolibarr/htdocs',
-        'main_data_dir' => '/var/www/html/dolibarr/documents',
-        'main_url' => getenv('DOLIBARR_URL_ROOT') ?: 'http://localhost',
-        'db_name' => '$DB_NAME',
-        'db_type' => 'pgsql',
-        'db_host' => '$DB_HOST',
-        'db_port' => '$DB_PORT',
-        'db_prefix' => 'llx_',
-        'db_user' => '$DB_USER',
-        'db_pass' => '$DB_PASS',
-        'selectlang' => 'en_US',
-    );
-    file_put_contents('install.forced.php', '<?php' . PHP_EOL . '\$force_install_databaserootlogin = \'$DB_USER\';' . PHP_EOL . '\$force_install_databaserootpass = \'$DB_PASS\';' . PHP_EOL . '\$force_install_database = \'' . json_encode(\$force) . '\';' . PHP_EOL);
-    echo 'install.forced.php created' . PHP_EOL;
-    "
+    # Step 1: fileconf → step1 (save config, no db/user creation)
+    echo "[entrypoint] Step 1: Saving config..."
+    STEP1_RESULT=$(curl -s -o /dev/null -w "%{http_code}" \
+      -X POST "${INSTALL_URL}/step1.php" \
+      -d "testpost=ok" \
+      -d "action=set" \
+      -d "main_dir=/var/www/html/dolibarr/htdocs" \
+      -d "main_data_dir=/var/www/html/dolibarr/documents" \
+      -d "main_url=${DOLIBARR_URL}" \
+      -d "db_name=${DB_NAME}" \
+      -d "db_type=pgsql" \
+      -d "db_host=${DB_HOST}" \
+      -d "db_port=${DB_PORT}" \
+      -d "db_prefix=llx_" \
+      -d "db_user=${DB_USER}" \
+      -d "db_pass=${DB_PASS}" \
+      -d "selectlang=en_US")
+    echo "[entrypoint] Step 1 HTTP: ${STEP1_RESULT}"
 
-    # Step 2: Run forced install
-    php -r "
-    \$_POST = array(
-        'testpost' => 'ok',
-        'action' => 'set',
-        'main_dir' => '/var/www/html/dolibarr/htdocs',
-        'main_data_dir' => '/var/www/html/dolibarr/documents',
-        'main_url' => getenv('DOLIBARR_URL_ROOT') ?: 'http://localhost',
-        'db_name' => '$DB_NAME',
-        'db_type' => 'pgsql',
-        'db_host' => '$DB_HOST',
-        'db_port' => '$DB_PORT',
-        'db_prefix' => 'llx_',
-        'db_user' => '$DB_USER',
-        'db_pass' => '$DB_PASS',
-        'selectlang' => 'en_US',
-    );
-    \$force_install_noedit = 2;  // Skip config file creation (already done)
-    \$force_install_message = 'auto';
-    \$force_install_main_data_root = '/var/www/html/dolibarr/documents';
-    \$force_install_main_document_root = '/var/www/html/dolibarr/htdocs';
-    \$force_install_createuser = false;
-    \$force_install_createdatabase = false;
-    
-    // Run step1
-    include 'step1.php';
-    echo 'Install completed' . PHP_EOL;
-    " 2>&1 || echo "Auto-install completed with warnings (may be ok)"
+    # Step 2: step2 → step5 (create DB structure)
+    if [ "$STEP1_RESULT" = "200" ]; then
+        echo "[entrypoint] Step 2: Creating database structure..."
+        STEP2_RESULT=$(curl -s -o /dev/null -w "%{http_code}" \
+          -X POST "${INSTALL_URL}/step5.php" \
+          -d "testpost=ok" \
+          -d "action=set" \
+          -d "selectlang=en_US")
+        echo "[entrypoint] Step 2 HTTP: ${STEP2_RESULT}"
+    fi
 
-    cd /
-    echo "Dolibarr auto-install finished"
+    echo "[entrypoint] Auto-install complete"
 fi
 
 exec "$@"
