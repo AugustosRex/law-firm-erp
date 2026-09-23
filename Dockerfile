@@ -1,14 +1,8 @@
 FROM php:8.2-apache
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    libpq-dev \
-    libpng-dev \
-    libjpeg-dev \
-    libfreetype6-dev \
-    libzip-dev \
-    libicu-dev \
-    unzip \
-    curl \
+    libpq-dev libpng-dev libjpeg-dev libfreetype6-dev \
+    libzip-dev libicu-dev unzip curl \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
     && docker-php-ext-install -j$(nproc) \
         pdo_pgsql pgsql gd zip intl calendar mysqli pdo_mysql \
@@ -17,15 +11,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN a2enmod rewrite
 
 ENV DOLIBARR_VERSION=20.0.3
-RUN curl -fsSL https://github.com/Dolibarr/dolibarr/archive/refs/tags/${DOLIBARR_VERSION}.tar.gz \
+RUN curl -fsSL "https://github.com/Dolibarr/dolibarr/archive/refs/tags/${DOLIBARR_VERSION}.tar.gz" \
     | tar xz -C /var/www/ \
-    && mv /var/www/dolibarr-${DOLIBARR_VERSION} /var/www/html/dolibarr \
+    && mv "/var/www/dolibarr-${DOLIBARR_VERSION}" /var/www/html/dolibarr \
     && mkdir -p /var/www/html/dolibarr/documents \
     && chown -R www-data:www-data /var/www/html/dolibarr \
     && cp /var/www/html/dolibarr/htdocs/conf/conf.php.example /var/www/html/dolibarr/htdocs/conf/conf.php \
     && chown www-data:www-data /var/www/html/dolibarr/htdocs/conf/conf.php
 
-RUN echo '<VirtualHost *:10000>\n\
+RUN printf '<VirtualHost *:10000>\n\
     DocumentRoot /var/www/html/dolibarr/htdocs\n\
     <Directory /var/www/html/dolibarr/htdocs>\n\
         AllowOverride All\n\
@@ -33,9 +27,9 @@ RUN echo '<VirtualHost *:10000>\n\
     </Directory>\n\
     ErrorLog ${APACHE_LOG_DIR}/error.log\n\
     CustomLog ${APACHE_LOG_DIR}/access.log combined\n\
-</VirtualHost>' > /etc/apache2/sites-available/000-default.conf
+</VirtualHost>\n' > /etc/apache2/sites-available/000-default.conf
 
-RUN echo "Listen 10000" >> /etc/apache2/ports.conf
+RUN printf 'Listen 10000\n' >> /etc/apache2/ports.conf
 
 EXPOSE 10000
 
