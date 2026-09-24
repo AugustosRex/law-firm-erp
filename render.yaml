@@ -28,7 +28,7 @@ services:
       - key: DOLIBARR_URL_ROOT
         value: https://advocacia-erp.onrender.com
       - key: DOLIBARR_ADMIN_PASSWORD
-        value: admin
+        value:admin
       - key: PHP_MEMORY_LIMIT
         value: "256M"
       - key: PHP_MAX_EXECUTION_TIME
